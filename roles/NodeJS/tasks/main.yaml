@@ -1,0 +1,76 @@
+---
+- include_vars: "roles/{{ product }}/vars/{{ ansible_distribution }}.yaml"
+
+- name: Create a temp directory if it does not exist
+  file:
+    path: "{{ TEMP_DIR }}"
+    state: directory
+
+- name: Create the goldenversion directory if it is does not exist
+  file:
+    path: "{{ goldenversion_dir }}"
+    state: directory
+
+- name: Check if directory exist
+  stat:
+    path: "{{ goldenversion_dir }}/{{ product }}-{{ application_version }}"
+  register: check_dir
+
+- name: Debug check_dir
+  debug:
+    msg: "{{ product }}-{{ application_version }} already exists, ending installation .."
+  when: check_dir.stat.exists
+
+- name: end_play
+  when: check_dir.stat.exists
+
+- name: "Downloading {{ product }} from {{ artifactory_bin_url }}/{{ archive_name }}"
+  get_url:
+    url: "{{ artifactory_bin_url }}/{{ archive_name }}"
+    dest: "{{ TEMP_DIR }}/{{ archive_name }}"
+  register: download_result
+
+- name: "Extract {{ TEMP_DIR }}/{{ archive_name }} into {{ goldenversion_dir }}"
+  unarchive:
+    src: "{{ TEMP_DIR }}/{{ archive_name }}"
+    dest: "{{ goldenversion_dir }}"
+    remote_src: yes
+    list_files: yes
+  register: archive_content
+
+- name: "Delete the extracted directory"
+  file:
+    path: "{{ TEMP_DIR }}/{{ archive_name }}"
+    state: absent
+  when: download_result is success
+
+- name: Rename the extracted directory
+  shell: mv "{{ goldenversion_dir }}/{{ archive_contenct.files[0]" "{{ goldenversion_dir }}/{{ product }}-{{ application_version }}"
+  args:
+    executable: /bin/bash
+  when: check_dir.stat.exists == false
+
+- name: Update NODEJS_HOME
+  shell: echo "{{ item }}" >> {{ ansible_env.HOME}}/.bashrc
+  with_items:
+    - "export NODEJS_HOME={{ APP_DIR }}"
+
+- name: Update PATH
+  shell: grep -q "{{ APP_DIR }}/bin" <<< ":$PATH:" || echo "export PATH={{ APP_DIR }}/bin:$PATH" >> "{{ USER_HOME }}/.bashrc"
+
+- name: "Display {{ product }} version"
+  shell: "{{ APP_DIR }}/bin/node -v"
+  register: output
+
+- name: debug output
+  debug:
+    msg: "The installed NodeJS version is {{ output.stdout_lines }}"
+
+- name: Modify npm to poing to installed node
+  lineinfile:
+    path: "{{ APP_DIR }}/bin/npm"
+    regexp: '^#!/usr/bin/env node'
+    line: "#!/usr/bin/env {{ APP_DIR }}/bin/node"
+
+- name: Set npm registry
+  shell: "{{ APP_DIR }}/bin/npm config set registry https://artifactory.global.standardchartered.com/artifactory/api/npm/npm-release"

@@ -1,0 +1,10 @@
+storm.zookeeper.servers:
+ - "localhost"
+storm.local.dir: "{{ USER_HOME }}/goldenversion/{{ product }}-{{ application_version }}/data"
+nimbus.host: "localhost"
+ui.port: 8090
+supervisor.slots.ports:
+ - 6700
+ - 6701
+ - 6702
+ - 6703

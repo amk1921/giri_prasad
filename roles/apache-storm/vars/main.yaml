@@ -1,0 +1,9 @@
+GV_INSTALL_DIR: "/home/manoj"
+application_version: 2.2.0
+product: apache-storm
+goldenversion_dir: "{{ GV_INSTALL_DIR }}/goldenversion"
+artifactory_bin_url: "https://mirrors.estointernet.in/apache/storm/apache-storm-2.2.0"
+apache_storm_version: "{{ application_version | regex_search('^\\d+\\.\\d+') }}"
+USER_HOME: "{{ ansible_env.HOME }}"
+TEMP_DIR: "{{ USER_HOME }}/.eittemp"
+APP_DIR: "{{ USER_HOME }}/goldenversion/{{ product }}-{{ application_version }}"

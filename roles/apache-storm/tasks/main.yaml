@@ -1,0 +1,94 @@
+---
+- include_vars: "roles/{{ product }}/vars/{{ ansible_distribution }}.yaml"
+
+- name: Create a temp directory if it does not exist
+  file:
+    path: "{{ TEMP_DIR }}"
+    state: directory
+
+- name: Create the goldenversion directory if it is does not exist
+  file:
+    path: "{{ goldenversion_dir }}"
+    state: directory
+
+- name: Check if product directory exist
+  stat:
+    path: "{{ goldenversion_dir }}/{{ product }}-{{ application_version }}"
+  register: check_dir
+
+- name: Debug check_dir
+  debug:
+    msg: "{{ product }}-{{ application_version }} already exists, ending installation .."
+  when: check_dir.stat.exists
+
+- meta: end_play
+  when: check_dir.stat.exists
+
+# - name: "Downloading {{ product }} from {{ artifactory_bin_url }}/{{ archive_name }}"
+#   get_url:
+#     url: "{{ artifactory_bin_url }}/{{ archive_name }}"
+#     dest: "{{ TEMP_DIR }}/{{ archive_name }}"
+#   register: download_result
+
+- name: "Extract {{ TEMP_DIR }}/{{ archive_name }} into {{ goldenversion_dir }}"
+  unarchive:
+    src: "{{ TEMP_DIR }}/{{ archive_name }}"
+    dest: "{{ goldenversion_dir }}"
+    remote_src: yes
+    list_files: yes
+  register: archive_content
+
+# - name: "Delete the extracted directory"
+#   file:
+#     path: "{{ TEMP_DIR }}/{{ archive_name }}"
+#     state: absent
+#   when: download_result is success
+
+- name: Make sure apache-storm data directory is present
+  file:
+    path: "{{ USER_HOME }}/goldenversion/{{ product }}-{{ application_version }}/data"
+    state: directory
+
+- name: Make sure storm.yaml is updated
+  template:
+    src: apache_storm.yaml
+    dest: "{{ USER_HOME }}/goldenversion/{{ product }}-{{ application_version }}/conf/storm.yaml"
+    backup: yes
+
+- name: Update package path and PATH variables in .bashrc file
+  lineinfile:
+    path: '{{ ansible_env.HOME}}/.bashrc'
+    regexp: "{{ item }}"
+    line: "{{ item }}"
+    create: yes
+    owner: '{{ ansible_ssh_user }}'
+    group: '{{ ansible_ssh_user }}'
+    mode: '644'
+  with_items:
+    - "export STORM_HOME={{ APP_DIR }}"
+    - "export PATH=$PATH:$STORM_HOME/bin"
+
+- name: Source .bashrc file
+  shell: "source {{ ansible_env.HOME}}/.bashrc"
+  args:
+    executable: /bin/bash
+
+- name: Start apache-storm services
+  shell: "./storm {{ item }} >/dev/null 2>&1 &"
+  args:
+    chdir: "{{ USER_HOME }}/goldenversion/{{ product }}-{{ application_version }}/bin"
+    executable: /bin/bash
+  async: 10
+  poll: 5
+  with_items:
+    - "nimbus"
+    - "supervisor"
+    - "ui"
+
+- name: "Display {{ product }} version"
+  shell: "cat {{ APP_DIR }}/RELEASE"
+  register: output
+
+- name: debug output
+  debug:
+    msg: "The installed APACHE-STORM version is {{ output.stdout_lines }}"
