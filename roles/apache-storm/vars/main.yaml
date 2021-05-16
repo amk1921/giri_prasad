@@ -1,4 +1,4 @@
-GV_INSTALL_DIR: "/home/manoj"
+GV_INSTALL_DIR: "/home/ec2-user"
 application_version: 2.2.0
 product: apache-storm
 goldenversion_dir: "{{ GV_INSTALL_DIR }}/goldenversion"

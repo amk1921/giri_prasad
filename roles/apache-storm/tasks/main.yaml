@@ -24,11 +24,17 @@
 - meta: end_play
   when: check_dir.stat.exists
 
-# - name: "Downloading {{ product }} from {{ artifactory_bin_url }}/{{ archive_name }}"
-#   get_url:
-#     url: "{{ artifactory_bin_url }}/{{ archive_name }}"
-#     dest: "{{ TEMP_DIR }}/{{ archive_name }}"
-#   register: download_result
+- name: Validate if download already exist
+  stat:
+    path: "{{ TEMP_DIR }}/{{ archive_name }}"
+  register: download_exist
+
+- name: "Downloading {{ product }} from {{ artifactory_bin_url }}/{{ archive_name }}"
+  get_url:
+    url: "{{ artifactory_bin_url }}/{{ archive_name }}"
+    dest: "{{ TEMP_DIR }}/{{ archive_name }}"
+  register: download_result
+  when: not download_exist.stat.exists
 
 - name: "Extract {{ TEMP_DIR }}/{{ archive_name }} into {{ goldenversion_dir }}"
   unarchive:
@@ -38,11 +44,11 @@
     list_files: yes
   register: archive_content
 
-# - name: "Delete the extracted directory"
-#   file:
-#     path: "{{ TEMP_DIR }}/{{ archive_name }}"
-#     state: absent
-#   when: download_result is success
+- name: "Delete the extracted directory"
+  file:
+    path: "{{ TEMP_DIR }}/{{ archive_name }}"
+    state: absent
+  when: download_result is success
 
 - name: Make sure apache-storm data directory is present
   file:
@@ -61,8 +67,6 @@
     regexp: "{{ item }}"
     line: "{{ item }}"
     create: yes
-    owner: '{{ ansible_ssh_user }}'
-    group: '{{ ansible_ssh_user }}'
     mode: '644'
   with_items:
     - "export STORM_HOME={{ APP_DIR }}"
