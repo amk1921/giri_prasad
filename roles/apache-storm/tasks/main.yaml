@@ -42,12 +42,6 @@
   register: product_path_set
   ignore_errors: yes
 
-#  lineinfile:
-#    path: '{{ ansible_env.HOME}}/.bashrc'
-#    regex: '*PATH=*{{ product }}*'
-#    line: '*PATH=*{{ product }}*'
-#  register: product_path_set
-
 - name: debug
   debug:
     msg: "{{ product_path_set }}"
