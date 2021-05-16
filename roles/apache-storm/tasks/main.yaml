@@ -42,10 +42,6 @@
   register: product_path_set
   ignore_errors: yes
 
-- name: debug
-  debug:
-    msg: "{{ product_path_set }}"
-
 - name: Debug product_path_set
   debug:
     msg: "Product '{{ product }}' PATH already set in {{ ansible_env.HOME}}/.bashrc file, ending installation .."
