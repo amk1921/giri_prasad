@@ -1,6 +1,23 @@
 ---
 - include_vars: "roles/{{ product }}/vars/{{ ansible_distribution }}.yaml"
 
+- name: mathcing with find
+  find:
+    paths: "{{ goldenversion_dir }}"
+    patterns: "{{ product }}*"
+    file_type: directory
+  register: check_dir
+
+- name: Debug check_dir
+  debug:
+    msg: "{{ item.path | basename }} already exists, ending installation .."
+  with_items:
+    - "{{ check_dir.files }}"
+  when: check_dir.matched != 0
+
+- meta: end_play
+  when: check_dir.matched != 0
+
 - name: Create a temp directory if it does not exist
   file:
     path: "{{ TEMP_DIR }}"
@@ -10,19 +27,6 @@
   file:
     path: "{{ goldenversion_dir }}"
     state: directory
-
-- name: Check if product directory exist
-  stat:
-    path: "{{ goldenversion_dir }}/{{ product }}-{{ application_version }}"
-  register: check_dir
-
-- name: Debug check_dir
-  debug:
-    msg: "{{ product }}-{{ application_version }} already exists, ending installation .."
-  when: check_dir.stat.exists
-
-- meta: end_play
-  when: check_dir.stat.exists
 
 - name: Validate if download already exist
   stat:
