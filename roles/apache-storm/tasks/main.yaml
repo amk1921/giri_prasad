@@ -1,22 +1,65 @@
 ---
 - include_vars: "roles/{{ product }}/vars/{{ ansible_distribution }}.yaml"
 
-- name: mathcing with find
+- name: "Check if '{{ product }}' already exists in Golden-Version directory"
   find:
     paths: "{{ goldenversion_dir }}"
     patterns: "{{ product }}*"
     file_type: directory
-  register: check_dir
+  register: golden_version_dir
 
-- name: Debug check_dir
+- name: Debug golden_version_dir
   debug:
-    msg: "{{ item.path | basename }} already exists, ending installation .."
+    msg: "Product '{{ item.path | basename }}' already exists in {{ goldenversion_dir }} directory, ending installation .."
   with_items:
-    - "{{ check_dir.files }}"
-  when: check_dir.matched != 0
+    - "{{ golden_version_dir.files }}"
+  when: golden_version_dir.matched != 0
 
-- meta: end_play
-  when: check_dir.matched != 0
+- name: "End play if '{{ product }}' already exists in Golden-Version directory"
+  meta: end_play
+  when: golden_version_dir.matched != 0
+
+- name: "Check if '{{ product }}' zip file already exists in TEMP download directory"
+  find:
+    paths: "{{ TEMP_DIR }}"
+    patterns: "{{ product }}*"
+    file_type: file
+  register: product_download_zip
+
+- name: Debug product_download_zip
+  debug:
+    msg: "Product '{{ item.path | basename }}' zip file already exists in {{ TEMP_DIR }} directory, ending installation .."
+  with_items:
+    - "{{ product_download_zip.files }}"
+  when: product_download_zip.matched != 0
+
+- name: "End play if '{{ product }}' zip file already exists in TEMP download directory"
+  meta: end_play
+  when: product_download_zip.matched != 0
+
+- name: "Check if '{{ product }}' PATH already set in .bashrc file"
+  command: "grep -i {{ product }} {{ ansible_env.HOME}}/.bashrc"
+  register: product_path_set
+  ignore_errors: yes
+
+#  lineinfile:
+#    path: '{{ ansible_env.HOME}}/.bashrc'
+#    regex: '*PATH=*{{ product }}*'
+#    line: '*PATH=*{{ product }}*'
+#  register: product_path_set
+
+- name: debug
+  debug:
+    msg: "{{ product_path_set }}"
+
+- name: Debug product_path_set
+  debug:
+    msg: "Product '{{ product }}' PATH already set in {{ ansible_env.HOME}}/.bashrc file, ending installation .."
+  when: product_path_set.rc == 0
+
+- name: End play if the product PATH already set in .bashrc file
+  meta: end_play
+  when: product_path_set.rc == 0
 
 - name: Create a temp directory if it does not exist
   file:
