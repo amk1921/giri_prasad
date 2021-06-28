@@ -1,0 +1,111 @@
+---
+- include_vars: "roles/{{ product }}/vars/{{ ansible_distribution }}.yaml"
+
+- name: "Check if '{{ product }}' already exists in Golden-Version directory"
+  find:
+    paths: "{{ goldenversion_dir }}"
+    patterns: "{{ product }}*"
+    file_type: directory
+  register: golden_version_dir
+
+- name: Debug golden_version_dir
+  debug:
+    msg: "Product '{{ item.path | basename }}' already exists in {{ goldenversion_dir }} directory, ending installation .."
+  with_items:
+    - "{{ golden_version_dir.files }}"
+  when: golden_version_dir.matched != 0
+
+- name: "End play if '{{ product }}' already exists in Golden-Version directory"
+  meta: end_play
+  when: golden_version_dir.matched != 0
+
+- name: "Check if '{{ product }}' zip file already exists in TEMP download directory"
+  find:
+    paths: "{{ TEMP_DIR }}"
+    patterns: "{{ product }}*"
+    file_type: file
+  register: product_download_zip
+
+- name: Debug product_download_zip
+  debug:
+    msg: "Product '{{ item.path | basename }}' zip file already exists in {{ TEMP_DIR }} directory, ending installation .."
+  with_items:
+    - "{{ product_download_zip.files }}"
+  when: product_download_zip.matched != 0
+
+- name: "End play if '{{ product }}' zip file already exists in TEMP download directory"
+  meta: end_play
+  when: product_download_zip.matched != 0
+
+- name: "Check if '{{ product }}' PATH already set in .bashrc file"
+  command: "grep -i {{ product }} {{ ansible_env.HOME}}/.bashrc"
+  register: product_path_set
+  ignore_errors: yes
+
+- name: Debug product_path_set
+  debug:
+    msg: "Product '{{ product }}' PATH already set in {{ ansible_env.HOME}}/.bashrc file, ending installation .."
+  when: product_path_set.rc == 0
+
+- name: End play if the product PATH already set in .bashrc file
+  meta: end_play
+  when: product_path_set.rc == 0
+
+- name: Create a temp directory if it does not exist
+  file:
+    path: "{{ TEMP_DIR }}"
+    state: directory
+
+- name: Create the goldenversion directory if it is does not exist
+  file:
+    path: "{{ goldenversion_dir }}"
+    state: directory
+
+- name: Validate if download already exist
+  stat:
+    path: "{{ TEMP_DIR }}/{{ archive_name }}"
+  register: download_exist
+
+- name: "Downloading {{ product }} from {{ artifactory_bin_url }}/{{ archive_name }}"
+  get_url:
+    url: "{{ artifactory_bin_url }}/{{ archive_name }}"
+    dest: "{{ TEMP_DIR }}/{{ archive_name }}"
+  register: download_result
+  when: not download_exist.stat.exists
+
+- name: "Extract {{ TEMP_DIR }}/{{ archive_name }} into {{ goldenversion_dir }}"
+  unarchive:
+    src: "{{ TEMP_DIR }}/{{ archive_name }}"
+    dest: "{{ goldenversion_dir }}"
+    remote_src: yes
+    list_files: yes
+  register: archive_content
+
+- name: "Delete the extracted directory"
+  file:
+    path: "{{ TEMP_DIR }}/{{ archive_name }}"
+    state: absent
+  when: download_result is success
+
+- name: Get current pip
+  command: which pip
+  register: pip_version
+
+- name: Install pip dependent packages
+  command: "{{ pip_version.stdout }} install {{ item }}"
+  become: yes
+  with_items:
+    - pefile
+    - cd
+    - scandir
+    - lxml
+    - naiveBayesClassifier
+
+- name: Update yarGen dbs
+  command: "python {{ APP_DIR }}/yarGen.py --update"
+  args:
+    chdir: "{{ APP_DIR }}"
+
+- name: debug output
+  debug:
+    msg: "The installed {{ product }} version is {{ application_version }}"

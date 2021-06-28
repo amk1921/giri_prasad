@@ -1,0 +1,9 @@
+GV_INSTALL_DIR: "/home/ec2-user"
+application_version: 0.23.4
+product: yarGen
+goldenversion_dir: "{{ GV_INSTALL_DIR }}/goldenversion"
+artifactory_bin_url: "https://github.com/Neo23x0/yarGen/archive/refs/tags"
+apache_storm_version: "{{ application_version | regex_search('^\\d+\\.\\d+') }}"
+USER_HOME: "{{ ansible_env.HOME }}"
+TEMP_DIR: "{{ USER_HOME }}/.eittemp"
+APP_DIR: "{{ USER_HOME }}/goldenversion/{{ product }}-{{ application_version }}"
