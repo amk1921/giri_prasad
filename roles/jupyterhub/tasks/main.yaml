@@ -83,21 +83,9 @@
     name: jupyterhub
     version: "{{ application_version }}"
 
-#- name: Make sure required pip packages are installed
-#  pip:
-#    name: "{{ item }}"
-#    state: present
-#  with_items:
-#    - selinux
-#    - libselinux-python
-
 - name: "Find where '{{ product }}' installed"
   command: which "{{ product }}"
   register: product_install_path
-
-- name: debug
-  debug:
-    msg: "{{ product_install_path }}"
 
 - name: "Copy {{ product }} binary to {{ APP_DIR }} directory"
   copy:
@@ -105,12 +93,6 @@
     dest: "{{ APP_DIR }}"
     remote_src: true
 
-#- name: Remove old installed binary
-#  become: true
-#  file:
-#    path: "{{ product_install_path.stdout }}"
-#    state: absent
-  
 - name: Update package path and PATH variables in .bashrc file
   lineinfile:
     path: '{{ ansible_env.HOME}}/.bashrc'
