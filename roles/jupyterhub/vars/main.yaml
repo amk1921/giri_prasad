@@ -1,0 +1,7 @@
+GV_INSTALL_DIR: "/home/ec2-user"
+application_version: 1.4.1
+product: jupyterhub
+goldenversion_dir: "{{ GV_INSTALL_DIR }}/goldenversion"
+USER_HOME: "{{ ansible_env.HOME }}"
+TEMP_DIR: "{{ USER_HOME }}/.eittemp"
+APP_DIR: "{{ USER_HOME }}/goldenversion/{{ product }}-{{ application_version }}"

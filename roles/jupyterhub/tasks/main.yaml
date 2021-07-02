@@ -1,0 +1,131 @@
+---
+- include_vars: "roles/{{ product }}/vars/{{ ansible_distribution }}.yaml"
+
+- name: "Check if '{{ product }}' already exists in Golden-Version directory"
+  find:
+    paths: "{{ goldenversion_dir }}"
+    patterns: "{{ product }}*"
+    file_type: directory
+  register: golden_version_dir
+
+- name: Debug golden_version_dir
+  debug:
+    msg: "Product '{{ item.path | basename }}' already exists in {{ goldenversion_dir }} directory, ending installation .."
+  with_items:
+    - "{{ golden_version_dir.files }}"
+  when: golden_version_dir.matched != 0
+
+- name: "End play if '{{ product }}' already exists in Golden-Version directory"
+  meta: end_play
+  when: golden_version_dir.matched != 0
+
+- name: "Check if '{{ product }}' zip file already exists in TEMP download directory"
+  find:
+    paths: "{{ TEMP_DIR }}"
+    patterns: "{{ product }}*"
+    file_type: file
+  register: product_download_zip
+
+- name: Debug product_download_zip
+  debug:
+    msg: "Product '{{ item.path | basename }}' zip file already exists in {{ TEMP_DIR }} directory, ending installation .."
+  with_items:
+    - "{{ product_download_zip.files }}"
+  when: product_download_zip.matched != 0
+
+- name: "End play if '{{ product }}' zip file already exists in TEMP download directory"
+  meta: end_play
+  when: product_download_zip.matched != 0
+
+- name: "Check if '{{ product }}' PATH already set in .bashrc file"
+  command: "grep -i {{ product }} {{ ansible_env.HOME}}/.bashrc"
+  register: product_path_set
+  ignore_errors: yes
+
+- name: Debug product_path_set
+  debug:
+    msg: "Product '{{ product }}' PATH already set in {{ ansible_env.HOME}}/.bashrc file, ending installation .."
+  when: product_path_set.rc == 0
+
+- name: End play if the product PATH already set in .bashrc file
+  meta: end_play
+  when: product_path_set.rc == 0
+
+- name: Create a temp directory if it does not exist
+  file:
+    path: "{{ TEMP_DIR }}"
+    state: directory
+
+- name: Create the goldenversion directory if it is does not exist
+  file:
+    path: "{{ goldenversion_dir }}"
+    state: directory
+
+- name: "Make sure {{ APP_DIR }} directory exists"
+  file:
+    path: "{{ APP_DIR }}"
+    state: directory
+
+- name: Install 'configurable-http-proxy' using npm
+  become: true
+  npm:
+    name: configurable-http-proxy
+    global: yes
+    state: present
+
+- name: Upgrade pip package
+  become: true
+  command: python -m pip install --upgrade pip
+
+- name: "Install 'Jupyterhub-{{ application_version }}' using pip"
+  become: true
+  pip:
+    name: jupyterhub
+    version: "{{ application_version }}"
+
+#- name: Make sure required pip packages are installed
+#  pip:
+#    name: "{{ item }}"
+#    state: present
+#  with_items:
+#    - selinux
+#    - libselinux-python
+
+- name: "Find where '{{ product }}' installed"
+  command: which "{{ product }}"
+  register: product_install_path
+
+- name: debug
+  debug:
+    msg: "{{ product_install_path }}"
+
+- name: "Copy {{ product }} binary to {{ APP_DIR }} directory"
+  copy:
+    src: "{{ product_install_path.stdout }}"
+    dest: "{{ APP_DIR }}"
+    remote_src: true
+
+#- name: Remove old installed binary
+#  become: true
+#  file:
+#    path: "{{ product_install_path.stdout }}"
+#    state: absent
+  
+- name: Update package path and PATH variables in .bashrc file
+  lineinfile:
+    path: '{{ ansible_env.HOME}}/.bashrc'
+    regexp: "{{ item }}"
+    line: "{{ item }}"
+    create: yes
+    mode: '644'
+  with_items:
+    - "export PATH=$PATH:{{ APP_DIR }}/{{ product }}"
+
+- name: Source .bashrc file
+  shell: "source {{ ansible_env.HOME}}/.bashrc"
+  args:
+    executable: /bin/bash
+
+- name: "Display {{ product }} version"
+  debug:
+    msg: "The installed {{ product }} version is {{ application_version }}"

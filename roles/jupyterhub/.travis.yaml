@@ -1,0 +1,29 @@
+---
+language: python
+pyton: "2.7"
+
+# Use the new contaner infrastructure
+sudo: false
+
+# Install ansible
+addons:
+  apt:
+    packages:
+    - python-pip
+
+install:
+  # Install ansible
+  - pip install ansible
+
+  # Check ansible version
+  - ansible --version
+
+  # Create ansible.cfg with correct roles_path
+  - printf '[defaults]\nroles_path=../' > ansible.cfg
+
+scripts:
+  # Basic role syntax check
+  - ansible-playbook tests/test.yaml -i tests/inventory --syntax-check
+
+notifications:
+  webhook: http://galaxy.ansible.com/api/v1/notifications

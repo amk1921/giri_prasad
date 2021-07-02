@@ -1,4 +1,4 @@
 ---
-- hosts: localhost
+- hosts: t1
   roles:
-    - yarGen
+    - jupyterhub
